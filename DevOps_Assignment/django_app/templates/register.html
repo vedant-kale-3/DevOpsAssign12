@@ -1,0 +1,7 @@
+<!doctype html>
+<title>Register</title>
+<form method="post">{% csrf_token %}
+  <label>Username <input name="username"></label><br>
+  <label>Password <input name="password" type="password"></label><br>
+  <button type="submit">Register</button>
+</form>

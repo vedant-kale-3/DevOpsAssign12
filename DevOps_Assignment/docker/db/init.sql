@@ -1,0 +1,1 @@
+-- init script (optional). The application will create table via Django migrations.
