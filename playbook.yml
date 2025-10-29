@@ -1,0 +1,71 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+
+    - name: Install dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Install Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repo
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker & Docker Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+- hosts: manager
+  become: true
+  tasks:
+    - name: Initialize Docker Swarm
+      shell: |
+        docker swarm init --advertise-addr {{ ansible_host }}
+      args:
+        warn: false
+      register: swarm_init
+      changed_when: "'Swarm initialized' in swarm_init.stdout"
+
+    - name: Get join-token for workers
+      shell: docker swarm join-token -q worker
+      register: worker_token
+      when: swarm_init is defined
+
+    - name: Save worker token to file
+      copy:
+        dest: /tmp/worker_token.txt
+        content: "{{ worker_token.stdout }}"
+      when: worker_token is defined
+
+- hosts: workers
+  become: true
+  tasks:
+    - name: Read token from manager (requires controller to push token or manual step)
+      debug:
+        msg: "Please copy worker join token from manager:/tmp/worker_token.txt and fill in the join command in this playbook or use controller to orchestrate."
